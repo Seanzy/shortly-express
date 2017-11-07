@@ -8,7 +8,7 @@ const models = require('./models');
 
 const app = express();
 
-app.set('views', `${__dirname}/views`);
+app.set('views', `${__dirname}/views`); //
 app.set('view engine', 'ejs');
 app.use(partials());
 app.use(bodyParser.json());
@@ -16,13 +16,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
 
 
-
+//routes
 app.get('/', 
 (req, res) => {
-  res.render('index');
+  //we shouldn't render index.html immediately, first we should check if they already have an existing session
+  //If they have a session (check token), send them index, otherwise send them to login. 
+  res.render('index'); //index.ejs
 });
 
-app.get('/create', 
+app.get('/create', //'shorten tab'
 (req, res) => {
   res.render('index');
 });
@@ -36,6 +38,23 @@ app.get('/links',
     .error(error => {
       res.status(500).send(error);
     });
+});
+
+app.get('/login', 
+(req, res, next) => {
+  res.render('login');
+});
+
+app.get('/signup',
+(req, res, next) => {
+  res.render('signup');
+});
+
+app.post('/signup',
+(req, res, next) => {
+  console.log('response.body------------=====', req.body);
+  models.Users.create(req.body); // should add our username object to the database from the signup page
+  res.render('index');
 });
 
 app.post('/links', 

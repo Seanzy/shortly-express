@@ -8,7 +8,7 @@ const connection = mysql.createConnection({
   password: 'student'
 });
 
-const db = Promise.promisifyAll(connection, { multiArgs: true });
+const db = Promise.promisifyAll(connection, { multiArgs: true });//resulting promise will always fulfill with an array of the callback's success values. 
 
 db.connectAsync()
   .then(() => console.log(`Connected to ${database} database as ID ${db.threadId}`))
