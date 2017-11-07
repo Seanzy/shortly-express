@@ -21,11 +21,15 @@ app.get('/',
 (req, res) => {
   //we shouldn't render index.html immediately, first we should check if they already have an existing session
   //If they have a session (check token), send them index, otherwise send them to login. 
+  console.log(req.cookies);
+  
+  res.setHeader('set-cookie', '33242d23');
   res.render('index'); //index.ejs
 });
 
 app.get('/create', //'shorten tab'
 (req, res) => {
+  console.log('req.headers==========', req.headers);
   res.render('index');
 });
 
@@ -48,6 +52,53 @@ app.get('/login',
 app.get('/signup',
 (req, res, next) => {
   res.render('signup');
+});
+
+
+app.post('/login',
+(req, res, next) => {
+  // console.log(Users.get({username: req.body.username})
+  models.Users.get({username: req.body.username})
+  .error(err => 
+      res.sendStatus(401).render('login')
+    )
+    .then(dbResult => { //from Users.get(), returns the promise object that has the salt, password, and username and id
+      var attempted = req.body.password;
+      console.log(dbResult); // result from DB
+      var isUser = models.Users.compare(attempted, dbResult.password, dbResult.salt);
+      if (isUser) {
+        models.Sessions.create()        
+        .error(err => {
+          console.log('Unable to retrieve hash', err, null);
+        })
+        .then(dbRes => { // dbRes from create() that created a new hash
+          models.Sessions.update({id: dbRes.insertId}, {userId: dbResult.id})
+          .then(function(res) {
+            console.log('res ', res.insertId);
+            return res.insertId;
+          })
+          .then(function(res) {
+            models.Sessions.get({id: res})
+          .then(function(res) {
+            console.log(res);
+          });
+    
+          });
+          // console.log('dbres', dbRes);
+
+        });
+        
+        res.redirect('index');
+        
+      } else {
+        res.sendStatus(401);
+      }
+      // isUser ? res.redirect('index') : res.sendStatus(401);
+    })
+    .catch(error => {
+      res.sendStatus(401).send(error);
+    })
+    .catch();
 });
 
 app.post('/signup',
