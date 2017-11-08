@@ -4,6 +4,7 @@ const utils = require('./lib/hashUtils');
 const partials = require('express-partials');
 const bodyParser = require('body-parser');
 const Auth = require('./middleware/auth');
+const Cookie = require('./middleware/cookieParser');
 const models = require('./models');
 
 const app = express();
@@ -14,7 +15,8 @@ app.use(partials());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../public')));
-
+app.use(Cookie); //will run cookieParser.js every request
+app.use(Auth.createSession); //will run auth.js every request
 
 //routes
 app.get('/', 
@@ -59,53 +61,86 @@ app.post('/login',
 (req, res, next) => {
   // console.log(Users.get({username: req.body.username})
   models.Users.get({username: req.body.username})
-  .error(err => 
-      res.sendStatus(401).render('login')
-    )
-    .then(dbResult => { //from Users.get(), returns the promise object that has the salt, password, and username and id
+  .catch(err => res.redirect('/login'))
+  .then(result => {
+    if (req.body.password === undefined) {
+      res.redirect('/login');
+    } else if (req.body.password && result) {
       var attempted = req.body.password;
-      console.log(dbResult); // result from DB
-      var isUser = models.Users.compare(attempted, dbResult.password, dbResult.salt);
+      var isUser = models.Users.compare(attempted, result.password, result.salt);
       if (isUser) {
-        models.Sessions.create()        
-        .error(err => {
-          console.log('Unable to retrieve hash', err, null);
-        })
-        .then(dbRes => { // dbRes from create() that created a new hash
-          models.Sessions.update({id: dbRes.insertId}, {userId: dbResult.id})
-          .then(function(res) {
-            console.log('res ', res.insertId);
-            return res.insertId;
-          })
-          .then(function(res) {
-            models.Sessions.get({id: res})
-          .then(function(res) {
-            console.log(res);
-          });
-    
-          });
-          // console.log('dbres', dbRes);
-
-        });
-        
-        res.redirect('index');
-        
-      } else {
-        res.sendStatus(401);
+        res.redirect('/');
       }
-      // isUser ? res.redirect('index') : res.sendStatus(401);
-    })
-    .catch(error => {
-      res.sendStatus(401).send(error);
-    })
-    .catch();
+    }
+    res.redirect('/login');
+   
+  });
+  // .error(err => 
+  //     res.sendStatus(401).render('login')
+  //   )
+  //   .then(dbResult => { //from Users.get(), returns the promise object that has the salt, password, and username and id
+  //     var attempted = req.body.password;
+  //     console.log(dbResult); // result from DB
+  //     var isUser = models.Users.compare(attempted, dbResult.password, dbResult.salt);
+  //     if (isUser) {
+  //       models.Sessions.create()        
+  //       .error(err => {
+  //         console.log('Unable to retrieve hash', err, null);
+  //       })
+  //       .then(dbRes => { // dbRes from create() that created a new hash
+  //         models.Sessions.update({id: dbRes.insertId}, {userId: dbResult.id})
+  //         .then(function(res) {
+  //           console.log('res ', res.insertId);
+  //           return res.insertId;
+  //         })
+  //         .then(function(res) {
+  //           models.Sessions.get({id: res})
+  //         .then(function(res) {
+  //           console.log(res);
+  //         });
+    
+  //         });
+  //         // console.log('dbres', dbRes);
+
+  //       });
+        
+  //       res.redirect('/');
+        
+  //     } else {
+  //       res.sendStatus(401);
+  //     }
+  //     // isUser ? res.redirect('index') : res.sendStatus(401);
+  //   })
+  //   .catch(error => {
+  //     res.sendStatus(401).send(error);
+  //   })
 });
 
 app.post('/signup',
 (req, res, next) => {
-  console.log('response.body------------=====', req.body);
-  models.Users.create(req.body); // should add our username object to the database from the signup page
-  res.render('index');
+  models.Users.get({username: req.body.username})
+  .catch(err => res.redirect('/signup'))
+  .then(result => {
+    if (!result && req.body.password && req.body.username) {
+      models.Users.create(req.body);
+      res.redirect('/');
+    } else {
+      res.redirect('/signup');
+    }
+  });
+  // console.log('response.body------------=====', req.body.username);
+  // models.Users.get({username: req.body.username})
+  // .catch(rejection => {
+  //   console.log('rejection***', rejection);
+  //   models.Users.create(req.body);
+  //   res.render('index');
+  // })
+  // .then(function(result) {
+  //   console.log(result);
+  //   res.render('signup');
+  // });
+  
+ // should add our username object to the database from the signup page if username doesn't exist
 });
 
 app.post('/links', 
